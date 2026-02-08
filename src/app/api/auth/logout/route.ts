@@ -4,7 +4,6 @@ import { SESSION_COOKIE_NAME } from "@/lib/auth";
 export async function POST() {
   const response = NextResponse.json({ message: "Logged out successfully" });
 
-  // Clear the session cookie
   response.cookies.set(SESSION_COOKIE_NAME, "", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",

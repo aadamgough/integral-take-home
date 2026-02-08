@@ -23,7 +23,6 @@ export async function GET(request: Request) {
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
 
-    // Build the where clause for filtering
     const where: {
       action?: string;
       userId?: string;
@@ -50,8 +49,6 @@ export async function GET(request: Request) {
       }
       if (endDate) {
         const end = new Date(endDate);
-        // Only add a day if it's a date-only string (YYYY-MM-DD format)
-        // ISO timestamps already include the exact time
         if (endDate.length === 10) {
           end.setDate(end.getDate() + 1);
         }

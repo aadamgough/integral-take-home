@@ -53,37 +53,54 @@ export default function PatientDashboardPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Get user from localStorage
+    // Use localStorage for initial render to avoid flash, but verify with server
     const storedUser = localStorage.getItem(STORAGE_KEYS.USER);
-    if (!storedUser) {
-      router.push("/");
-      return;
-    }
-
-    const parsedUser = JSON.parse(storedUser);
-    if (parsedUser.role !== "PATIENT") {
-      router.push("/queue");
-      return;
-    }
-
-    setUser(parsedUser);
-    fetchIntakes();
-  }, [router]);
-
-  const fetchIntakes = async () => {
-    try {
-      const response = await fetch("/api/intakes");
-      if (!response.ok) {
-        throw new Error("Failed to fetch submissions");
+    if (storedUser) {
+      try {
+        const parsed = JSON.parse(storedUser);
+        if (parsed.role === "PATIENT") {
+          setUser(parsed);
+        }
+      } catch (error) {
+        console.error("Failed to parse stored user:", error);
       }
-      const data = await response.json();
-      setIntakes(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
-      setIsLoading(false);
     }
-  };
+
+    // Verify auth state with server (source of truth)
+    async function verifyAuthAndFetch() {
+      try {
+        const authResponse = await fetch("/api/auth/me");
+        if (!authResponse.ok) {
+          localStorage.removeItem(STORAGE_KEYS.USER);
+          router.push("/");
+          return;
+        }
+
+        const verifiedUser = await authResponse.json();
+        if (verifiedUser.role !== "PATIENT") {
+          router.push("/queue");
+          return;
+        }
+
+        setUser(verifiedUser);
+        localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(verifiedUser));
+
+        // Fetch intakes
+        const intakesResponse = await fetch("/api/intakes");
+        if (!intakesResponse.ok) {
+          throw new Error("Failed to fetch submissions");
+        }
+        const data = await intakesResponse.json();
+        setIntakes(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "An error occurred");
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    verifyAuthAndFetch();
+  }, [router]);
 
   const handleLogout = async () => {
     try {

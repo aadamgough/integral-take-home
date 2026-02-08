@@ -118,29 +118,42 @@ export default function QueuePage() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
 
   useEffect(() => {
+    // Use localStorage for initial render to avoid flash
     const storedUser = localStorage.getItem(STORAGE_KEYS.USER);
     if (storedUser) {
       try {
-        setCurrentUser(JSON.parse(storedUser));
+        const parsed = JSON.parse(storedUser);
+        if (parsed.role === "REVIEWER") {
+          setCurrentUser(parsed);
+        }
       } catch (error) {
         console.error("Failed to parse stored user:", error);
       }
     }
 
-    async function fetchCurrentUser() {
+    // Verify auth state with server (source of truth)
+    async function verifyAuth() {
       try {
         const response = await fetch("/api/auth/me");
-        if (response.ok) {
-          const user = await response.json();
-          setCurrentUser(user);
-          localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+        if (!response.ok) {
+          localStorage.removeItem(STORAGE_KEYS.USER);
+          router.push("/");
+          return;
         }
+        const user = await response.json();
+        if (user.role !== "REVIEWER") {
+          router.push("/dashboard");
+          return;
+        }
+        setCurrentUser(user);
+        localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
       } catch (error) {
         console.error("Failed to fetch current user:", error);
+        router.push("/");
       }
     }
-    fetchCurrentUser();
-  }, []);
+    verifyAuth();
+  }, [router]);
 
   useEffect(() => {
     const now = new Date();

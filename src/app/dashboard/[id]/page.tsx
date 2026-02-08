@@ -80,19 +80,31 @@ export default function PatientIntakeDetailPage({ params }: { params: Promise<{ 
   }, [id]);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem(STORAGE_KEYS.USER);
-    if (!storedUser) {
-      router.push("/");
-      return;
+    // Verify auth state with server (source of truth)
+    async function verifyAuthAndFetch() {
+      try {
+        const authResponse = await fetch("/api/auth/me");
+        if (!authResponse.ok) {
+          localStorage.removeItem(STORAGE_KEYS.USER);
+          router.push("/");
+          return;
+        }
+
+        const user = await authResponse.json();
+        if (user.role !== "PATIENT") {
+          router.push("/queue");
+          return;
+        }
+
+        localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+        fetchIntake();
+      } catch (error) {
+        console.error("Auth verification failed:", error);
+        router.push("/");
+      }
     }
 
-    const parsedUser = JSON.parse(storedUser);
-    if (parsedUser.role !== "PATIENT") {
-      router.push("/queue");
-      return;
-    }
-
-    fetchIntake();
+    verifyAuthAndFetch();
   }, [router, fetchIntake]);
 
   if (isLoading) {

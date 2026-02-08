@@ -127,5 +127,4 @@ export const STORAGE_KEYS = {
 
 export const COOKIE_NAMES = {
   SESSION: "session",
-  USER_ID: "userId",
 } as const;

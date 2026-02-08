@@ -24,8 +24,8 @@ import {
   Loader2,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
-
-type Status = "PENDING" | "IN_REVIEW" | "APPROVED" | "REJECTED";
+import { formatDateTime } from "@/lib/utils";
+import { STATUS_COLORS, getStatusConfig, STORAGE_KEYS, type Status } from "@/lib/constants";
 
 interface Intake {
   id: string;
@@ -45,62 +45,6 @@ interface User {
   role: string;
 }
 
-const STATUS_COLORS = {
-  PENDING: {
-    icon: "text-amber-500",
-    bg: "bg-amber-50",
-    border: "border-amber-200",
-    text: "text-amber-700",
-  },
-  IN_REVIEW: {
-    icon: "text-blue-500",
-    bg: "bg-blue-50",
-    border: "border-blue-200",
-    text: "text-blue-700",
-  },
-  APPROVED: {
-    icon: "text-emerald-500",
-    bg: "bg-emerald-50",
-    border: "border-emerald-200",
-    text: "text-emerald-700",
-  },
-  REJECTED: {
-    icon: "text-red-500",
-    bg: "bg-red-50",
-    border: "border-red-200",
-    text: "text-red-700",
-  },
-} as const;
-
-const statusConfig: Record<Status, { label: string; icon: React.ReactNode }> = {
-  PENDING: {
-    label: "Pending",
-    icon: <Clock className="h-3 w-3" />,
-  },
-  IN_REVIEW: {
-    label: "In Review",
-    icon: <AlertCircle className="h-3 w-3" />,
-  },
-  APPROVED: {
-    label: "Approved",
-    icon: <CheckCircle2 className="h-3 w-3" />,
-  },
-  REJECTED: {
-    label: "Rejected",
-    icon: <XCircle className="h-3 w-3" />,
-  },
-};
-
-function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 export default function PatientDashboardPage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
@@ -110,7 +54,7 @@ export default function PatientDashboardPage() {
 
   useEffect(() => {
     // Get user from localStorage
-    const storedUser = localStorage.getItem("user");
+    const storedUser = localStorage.getItem(STORAGE_KEYS.USER);
     if (!storedUser) {
       router.push("/");
       return;
@@ -144,10 +88,11 @@ export default function PatientDashboardPage() {
   const handleLogout = async () => {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
-      localStorage.removeItem("user");
+      localStorage.removeItem(STORAGE_KEYS.USER);
       router.push("/");
-    } catch {
-      localStorage.removeItem("user");
+    } catch (error) {
+      console.error("Logout error:", error);
+      localStorage.removeItem(STORAGE_KEYS.USER);
       router.push("/");
     }
   };
@@ -302,7 +247,7 @@ export default function PatientDashboardPage() {
                 </TableHeader>
                 <TableBody>
                   {intakes.map((intake) => {
-                    const config = statusConfig[intake.status];
+                    const config = getStatusConfig(intake.status);
                     const colors = STATUS_COLORS[intake.status];
                     return (
                       <TableRow 
@@ -315,7 +260,7 @@ export default function PatientDashboardPage() {
                         </TableCell>
                         <TableCell className="font-medium">{intake.clientName}</TableCell>
                         <TableCell className="text-muted-foreground">
-                          {formatDate(intake.createdAt)}
+                          {formatDateTime(intake.createdAt)}
                         </TableCell>
                         <TableCell className="text-muted-foreground">
                           {intake._count?.documents || 0} file{(intake._count?.documents || 0) !== 1 ? "s" : ""}

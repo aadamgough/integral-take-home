@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { formatDateTime, formatFileSize, maskData } from "@/lib/utils";
+import {
+  STATUS_COLORS,
+  getAuditActionInfo,
+  AUDIT_ACTIONS,
+  type Status,
+} from "@/lib/constants";
 import {
   ArrowLeft,
   Clock,
@@ -72,99 +79,6 @@ interface Intake {
   auditLogs: AuditLog[];
 }
 
-type Status = "PENDING" | "IN_REVIEW" | "APPROVED" | "REJECTED";
-
-const STATUS_COLORS = {
-  PENDING: {
-    icon: "text-amber-500",
-    bg: "bg-amber-50",
-    border: "border-amber-200",
-    text: "text-amber-700",
-  },
-  IN_REVIEW: {
-    icon: "text-blue-500",
-    bg: "bg-blue-50",
-    border: "border-blue-200",
-    text: "text-blue-700",
-  },
-  APPROVED: {
-    icon: "text-emerald-500",
-    bg: "bg-emerald-50",
-    border: "border-emerald-200",
-    text: "text-emerald-700",
-  },
-  REJECTED: {
-    icon: "text-red-500",
-    bg: "bg-red-50",
-    border: "border-red-200",
-    text: "text-red-700",
-  },
-} as const;
-
-const statusConfig: Record<Status, { label: string; icon: React.ReactNode }> = {
-  PENDING: {
-    label: "Pending",
-    icon: <Clock className="h-4 w-4" />,
-  },
-  IN_REVIEW: {
-    label: "In Review",
-    icon: <AlertCircle className="h-4 w-4" />,
-  },
-  APPROVED: {
-    label: "Approved",
-    icon: <CheckCircle2 className="h-4 w-4" />,
-  },
-  REJECTED: {
-    label: "Rejected",
-    icon: <XCircle className="h-4 w-4" />,
-  },
-};
-
-function maskData(data: string, type: "phone" | "ssn" | "dob"): string {
-  if (!data) return "—";
-  switch (type) {
-    case "phone":
-      return `***-***-${data.slice(-4)}`;
-    case "ssn":
-      return `***-**-${data.slice(-4)}`;
-    case "dob":
-      const year = data.split("-")[0];
-      return `**/**/` + year;
-    default:
-      return data;
-  }
-}
-
-function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function getAuditActionLabel(action: string): { label: string; color: string } {
-  const actions: Record<string, { label: string; color: string }> = {
-    CREATED: { label: "Application Submitted", color: "bg-emerald-500" },
-    VIEWED: { label: "Viewed", color: "bg-blue-500" },
-    STATUS_CHANGED: { label: "Status Changed", color: "bg-amber-500" },
-    DOCUMENT_UPLOADED: { label: "Document Uploaded", color: "bg-blue-500" },
-    DOCUMENT_DELETED: { label: "Document Deleted", color: "bg-red-500" },
-    ASSIGNED: { label: "Assigned", color: "bg-blue-500" },
-    VIEW_MODE_PRIVILEGED: { label: "Viewed Full PII", color: "bg-purple-500" },
-    VIEW_MODE_REDACTED: { label: "Switched to Redacted", color: "bg-gray-500" },
-  };
-  return actions[action] || { label: action, color: "bg-gray-500" };
-}
-
 export default function IntakeDetailPage() {
   const params = useParams();
   const [intake, setIntake] = useState<Intake | null>(null);
@@ -174,7 +88,7 @@ export default function IntakeDetailPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [selectedDocIndex, setSelectedDocIndex] = useState(0);
 
-  const fetchIntake = async (options: { showLoading?: boolean; skipAudit?: boolean } = {}) => {
+  const fetchIntake = useCallback(async (options: { showLoading?: boolean; skipAudit?: boolean } = {}) => {
     const { showLoading = true, skipAudit = false } = options;
     if (showLoading) setIsLoading(true);
     try {
@@ -192,11 +106,11 @@ export default function IntakeDetailPage() {
     } finally {
       if (showLoading) setIsLoading(false);
     }
-  };
+  }, [params.id]);
 
   useEffect(() => {
     fetchIntake();
-  }, [params.id]);
+  }, [fetchIntake]);
 
   const handleStatusChange = async (newStatus: string) => {
     setStatus(newStatus as Status);
@@ -211,7 +125,7 @@ export default function IntakeDetailPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: privileged ? "VIEW_MODE_PRIVILEGED" : "VIEW_MODE_REDACTED",
+          action: privileged ? AUDIT_ACTIONS.VIEW_MODE_PRIVILEGED : AUDIT_ACTIONS.VIEW_MODE_REDACTED,
           details: { viewMode: privileged ? "privileged" : "redacted" },
         }),
       });
@@ -495,7 +409,7 @@ export default function IntakeDetailPage() {
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground mb-1">Submitted</p>
-                    <p className="font-medium">{formatDate(intake.createdAt)}</p>
+                    <p className="font-medium">{formatDateTime(intake.createdAt)}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground mb-1">Reviewer</p>
@@ -600,14 +514,14 @@ export default function IntakeDetailPage() {
               <CardContent>
                 <div className="space-y-3 max-h-48 overflow-auto">
                   {intake.auditLogs.map((log) => {
-                    const actionInfo = getAuditActionLabel(log.action);
+                    const actionInfo = getAuditActionInfo(log.action);
                     return (
                       <div key={log.id} className="flex gap-3 text-sm">
                         <div className={`w-2 h-2 mt-1.5 rounded-full ${actionInfo.color} shrink-0`} />
                         <div className="flex-1 min-w-0">
                           <p className="font-medium">{actionInfo.label}</p>
                           <p className="text-muted-foreground text-xs">
-                            {log.user.name} • {formatDate(log.createdAt)}
+                            {log.user.name} • {formatDateTime(log.createdAt)}
                           </p>
                         </div>
                       </div>

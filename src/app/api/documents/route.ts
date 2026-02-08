@@ -1,27 +1,9 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { prisma } from "@/lib/prisma";
-
-const ALLOWED_TYPES = [
-  "application/pdf",
-  "image/jpeg",
-  "image/png",
-  "image/gif",
-  "image/webp",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-];
-
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
-
-async function getCurrentUser() {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("userId")?.value;
-  if (!userId) return null;
-  return prisma.user.findUnique({ where: { id: userId } });
-}
+import { getCurrentUser } from "@/lib/auth";
+import { ALLOWED_FILE_TYPES, MAX_FILE_SIZE, AUDIT_ACTIONS } from "@/lib/constants";
 
 export async function POST(request: Request) {
   try {
@@ -55,7 +37,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    if (!ALLOWED_TYPES.includes(file.type)) {
+    if (!ALLOWED_FILE_TYPES.includes(file.type as typeof ALLOWED_FILE_TYPES[number])) {
       return NextResponse.json(
         { error: "Invalid file type. Allowed: PDF, images, Word documents" },
         { status: 400 }
@@ -96,7 +78,7 @@ export async function POST(request: Request) {
 
     await prisma.auditLog.create({
       data: {
-        action: "DOCUMENT_UPLOADED",
+        action: AUDIT_ACTIONS.DOCUMENT_UPLOADED,
         details: JSON.stringify({
           documentId: document.id,
           fileName: file.name,

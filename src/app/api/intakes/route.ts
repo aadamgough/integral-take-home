@@ -1,13 +1,7 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
-
-async function getCurrentUser() {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("userId")?.value;
-  if (!userId) return null;
-  return prisma.user.findUnique({ where: { id: userId } });
-}
+import { getCurrentUser } from "@/lib/auth";
+import { AUDIT_ACTIONS } from "@/lib/constants";
 
 export async function GET() {
   try {
@@ -81,7 +75,7 @@ export async function POST(request: Request) {
 
     await prisma.auditLog.create({
       data: {
-        action: "CREATED",
+        action: AUDIT_ACTIONS.CREATED,
         details: JSON.stringify({ intakeId: intake.id }),
         userId: user.id,
         intakeId: intake.id,

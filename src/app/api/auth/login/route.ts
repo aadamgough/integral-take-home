@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { createSession, SESSION_COOKIE_NAME, SESSION_MAX_AGE } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
   try {
@@ -45,16 +46,33 @@ export async function POST(request: NextRequest) {
 
     const { password: _, ...userWithoutPassword } = user;
 
+    // Create signed JWT session token
+    const sessionToken = await createSession({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    });
+
     const response = NextResponse.json({
       message: "Login successful",
       user: userWithoutPassword,
     });
 
-    response.cookies.set("userId", user.id, {
+    // Set the secure session cookie
+    response.cookies.set(SESSION_COOKIE_NAME, sessionToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7,
+      maxAge: SESSION_MAX_AGE,
+      path: "/",
+    });
+
+    // Clear the old userId cookie if it exists
+    response.cookies.set("userId", "", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 0,
       path: "/",
     });
 

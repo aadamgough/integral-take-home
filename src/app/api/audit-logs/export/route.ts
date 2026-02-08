@@ -1,38 +1,8 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
-
-async function getCurrentUser() {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("userId")?.value;
-  if (!userId) return null;
-  return prisma.user.findUnique({ where: { id: userId } });
-}
-
-function getAuditActionLabel(action: string): string {
-  const actions: Record<string, string> = {
-    CREATED: "Application Submitted",
-    VIEWED: "Viewed",
-    STATUS_CHANGED: "Status Changed",
-    DOCUMENT_UPLOADED: "Document Uploaded",
-    DOCUMENT_DELETED: "Document Deleted",
-    ASSIGNED: "Assigned",
-    VIEW_MODE_PRIVILEGED: "Viewed Full PII",
-    VIEW_MODE_REDACTED: "Switched to Redacted",
-  };
-  return actions[action] || action;
-}
-
-function escapeCSVField(field: string): string {
-  if (field.includes(",") || field.includes('"') || field.includes("\n")) {
-    return `"${field.replace(/"/g, '""')}"`;
-  }
-  return field;
-}
-
-function formatDateForCSV(date: Date): string {
-  return date.toISOString();
-}
+import { getCurrentUser } from "@/lib/auth";
+import { getAuditActionLabel } from "@/lib/constants";
+import { escapeCSVField, formatDateForCSV } from "@/lib/utils";
 
 export async function GET(request: Request) {
   try {
@@ -55,7 +25,6 @@ export async function GET(request: Request) {
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
 
-    // Build the where clause for filtering (same as GET /api/audit-logs)
     const where: {
       action?: string;
       userId?: string;

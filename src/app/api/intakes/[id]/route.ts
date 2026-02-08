@@ -1,16 +1,11 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
+import { AUDIT_ACTIONS } from "@/lib/constants";
+import type { Prisma } from "@prisma/client";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
-}
-
-async function getCurrentUser() {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("userId")?.value;
-  if (!userId) return null;
-  return prisma.user.findUnique({ where: { id: userId } });
 }
 
 export async function GET(request: Request, { params }: RouteParams) {
@@ -58,7 +53,7 @@ export async function GET(request: Request, { params }: RouteParams) {
     if (user.role === "REVIEWER" && !skipAudit) {
       await prisma.auditLog.create({
         data: {
-          action: "VIEWED",
+          action: AUDIT_ACTIONS.VIEWED,
           details: JSON.stringify({ viewedBy: user.name }),
           userId: user.id,
           intakeId: intake.id,
@@ -97,12 +92,12 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: "Intake not found" }, { status: 404 });
     }
 
-    const updateData: { status?: string; notes?: string; reviewerId?: string } = {};
+    const updateData: Prisma.IntakeUpdateInput = {};
     const auditDetails: { previousStatus?: string; newStatus?: string; notes?: string } = {};
 
     if (status && status !== existingIntake.status) {
       updateData.status = status;
-      updateData.reviewerId = user.id;
+      updateData.reviewer = { connect: { id: user.id } };
       auditDetails.previousStatus = existingIntake.status;
       auditDetails.newStatus = status;
     }
@@ -129,7 +124,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     if (auditDetails.newStatus) {
       await prisma.auditLog.create({
         data: {
-          action: "STATUS_CHANGED",
+          action: AUDIT_ACTIONS.STATUS_CHANGED,
           details: JSON.stringify(auditDetails),
           userId: user.id,
           intakeId: intake.id,

@@ -8,8 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FileText, Users, AlertCircle } from "lucide-react";
-
-type Role = "PATIENT" | "REVIEWER";
+import { STORAGE_KEYS, type Role } from "@/lib/constants";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -47,7 +46,7 @@ export default function LoginPage() {
         return;
       }
 
-      localStorage.setItem("user", JSON.stringify(data.user));
+      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(data.user));
 
       if (data.user.role === "PATIENT") {
         router.push("/dashboard");

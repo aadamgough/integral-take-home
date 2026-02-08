@@ -1,18 +1,11 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { readFile } from "fs/promises";
 import path from "path";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
-}
-
-async function getCurrentUser() {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("userId")?.value;
-  if (!userId) return null;
-  return prisma.user.findUnique({ where: { id: userId } });
 }
 
 export async function GET(request: Request, { params }: RouteParams) {
@@ -47,7 +40,8 @@ export async function GET(request: Request, { params }: RouteParams) {
     try {
       const fileBuffer = await readFile(filePath);
       
-      return new NextResponse(fileBuffer, {
+      // Convert Buffer to Uint8Array for NextResponse compatibility
+      return new NextResponse(new Uint8Array(fileBuffer), {
         headers: {
           "Content-Type": document.fileType,
           "Content-Disposition": `inline; filename="${document.fileName}"`,

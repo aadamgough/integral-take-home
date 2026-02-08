@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect, use, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,8 +18,8 @@ import {
   Loader2,
   ExternalLink,
 } from "lucide-react";
-
-type Status = "PENDING" | "IN_REVIEW" | "APPROVED" | "REJECTED";
+import { formatDateTime, formatDateLong, formatFileSize } from "@/lib/utils";
+import { STATUS_COLORS, getStatusConfig, STORAGE_KEYS, type Status } from "@/lib/constants";
 
 interface Document {
   id: string;
@@ -51,76 +51,6 @@ interface Intake {
   };
 }
 
-const STATUS_COLORS = {
-  PENDING: {
-    icon: "text-amber-500",
-    bg: "bg-amber-50",
-    border: "border-amber-200",
-    text: "text-amber-700",
-  },
-  IN_REVIEW: {
-    icon: "text-blue-500",
-    bg: "bg-blue-50",
-    border: "border-blue-200",
-    text: "text-blue-700",
-  },
-  APPROVED: {
-    icon: "text-emerald-500",
-    bg: "bg-emerald-50",
-    border: "border-emerald-200",
-    text: "text-emerald-700",
-  },
-  REJECTED: {
-    icon: "text-red-500",
-    bg: "bg-red-50",
-    border: "border-red-200",
-    text: "text-red-700",
-  },
-} as const;
-
-const statusConfig: Record<Status, { label: string; icon: React.ReactNode }> = {
-  PENDING: {
-    label: "Pending",
-    icon: <Clock className="h-4 w-4" />,
-  },
-  IN_REVIEW: {
-    label: "In Review",
-    icon: <AlertCircle className="h-4 w-4" />,
-  },
-  APPROVED: {
-    label: "Approved",
-    icon: <CheckCircle2 className="h-4 w-4" />,
-  },
-  REJECTED: {
-    label: "Rejected",
-    icon: <XCircle className="h-4 w-4" />,
-  },
-};
-
-function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-}
-
-function formatDateTime(dateString: string): string {
-  return new Date(dateString).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
 export default function PatientIntakeDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
@@ -128,24 +58,7 @@ export default function PatientIntakeDetailPage({ params }: { params: Promise<{ 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    // Check if user is logged in and is a patient
-    const storedUser = localStorage.getItem("user");
-    if (!storedUser) {
-      router.push("/");
-      return;
-    }
-
-    const parsedUser = JSON.parse(storedUser);
-    if (parsedUser.role !== "PATIENT") {
-      router.push("/queue");
-      return;
-    }
-
-    fetchIntake();
-  }, [router, id]);
-
-  const fetchIntake = async () => {
+  const fetchIntake = useCallback(async () => {
     try {
       const response = await fetch(`/api/intakes/${id}`);
       if (!response.ok) {
@@ -164,7 +77,23 @@ export default function PatientIntakeDetailPage({ params }: { params: Promise<{ 
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem(STORAGE_KEYS.USER);
+    if (!storedUser) {
+      router.push("/");
+      return;
+    }
+
+    const parsedUser = JSON.parse(storedUser);
+    if (parsedUser.role !== "PATIENT") {
+      router.push("/queue");
+      return;
+    }
+
+    fetchIntake();
+  }, [router, fetchIntake]);
 
   if (isLoading) {
     return (
@@ -215,8 +144,8 @@ export default function PatientIntakeDetailPage({ params }: { params: Promise<{ 
             Application {intake.id.slice(0, 8).toUpperCase()}
           </h1>
           <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border ${STATUS_COLORS[intake.status].bg} ${STATUS_COLORS[intake.status].border} ${STATUS_COLORS[intake.status].text}`}>
-            <span className={STATUS_COLORS[intake.status].icon}>{statusConfig[intake.status].icon}</span>
-            {statusConfig[intake.status].label}
+            <span className={STATUS_COLORS[intake.status].icon}>{getStatusConfig(intake.status, "md").icon}</span>
+            {getStatusConfig(intake.status).label}
           </span>
         </div>
 
@@ -258,7 +187,7 @@ export default function PatientIntakeDetailPage({ params }: { params: Promise<{ 
                   <Calendar className="h-4 w-4 text-muted-foreground" />
                   <div>
                     <p className="text-xs text-muted-foreground">Date of Birth</p>
-                    <p className="font-medium">{formatDate(intake.dateOfBirth)}</p>
+                    <p className="font-medium">{formatDateLong(intake.dateOfBirth)}</p>
                   </div>
                 </div>
               </div>

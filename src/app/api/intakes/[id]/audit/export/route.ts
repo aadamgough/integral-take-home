@@ -1,41 +1,11 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
+import { getAuditActionLabel } from "@/lib/constants";
+import { escapeCSVField, formatDateForCSV } from "@/lib/utils";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
-}
-
-async function getCurrentUser() {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("userId")?.value;
-  if (!userId) return null;
-  return prisma.user.findUnique({ where: { id: userId } });
-}
-
-function getAuditActionLabel(action: string): string {
-  const actions: Record<string, string> = {
-    CREATED: "Application Submitted",
-    VIEWED: "Viewed",
-    STATUS_CHANGED: "Status Changed",
-    DOCUMENT_UPLOADED: "Document Uploaded",
-    DOCUMENT_DELETED: "Document Deleted",
-    ASSIGNED: "Assigned",
-    VIEW_MODE_PRIVILEGED: "Viewed Full PII",
-    VIEW_MODE_REDACTED: "Switched to Redacted",
-  };
-  return actions[action] || action;
-}
-
-function escapeCSVField(field: string): string {
-  if (field.includes(",") || field.includes('"') || field.includes("\n")) {
-    return `"${field.replace(/"/g, '""')}"`;
-  }
-  return field;
-}
-
-function formatDateForCSV(dateString: string): string {
-  return new Date(dateString).toISOString();
 }
 
 export async function GET(request: Request, { params }: RouteParams) {

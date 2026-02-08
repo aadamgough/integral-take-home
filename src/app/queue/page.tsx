@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { format, subMinutes, subHours, subDays } from "date-fns";
-import { DateRange } from "react-day-picker";
+import type { DateRange } from "react-day-picker";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -32,7 +33,16 @@ import {
 } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { cn } from "@/lib/utils";
+import { cn, formatDateTime } from "@/lib/utils";
+import {
+  STATUS_COLORS,
+  getStatusConfig,
+  getAuditActionInfo,
+  TIME_RANGE_OPTIONS,
+  STORAGE_KEYS,
+  type Status,
+  type TimeRangePreset,
+} from "@/lib/constants";
 import {
   Clock,
   AlertCircle,
@@ -65,7 +75,7 @@ interface AuditLog {
   action: string;
   details: string | null;
   createdAt: string;
-  user: { id: true; name: string; email: string };
+  user: { id: string; name: string; email: string };
   intake: { id: string; clientName: string; clientEmail: string; status: string };
 }
 
@@ -83,96 +93,10 @@ interface CurrentUser {
   organization: string | null;
 }
 
-type Status = "PENDING" | "IN_REVIEW" | "APPROVED" | "REJECTED";
 type ViewMode = "queue" | "audit";
-type TimeRangePreset = "all" | "30min" | "1hour" | "3hours" | "6hours" | "24hours" | "3days" | "week" | "14days" | "30days" | "custom";
-
-const TIME_RANGE_OPTIONS: { value: TimeRangePreset; label: string }[] = [
-  { value: "all", label: "Time" },
-  { value: "30min", label: "Past 30 minutes" },
-  { value: "1hour", label: "Past hour" },
-  { value: "3hours", label: "Past 3 hours" },
-  { value: "6hours", label: "Past 6 hours" },
-  { value: "24hours", label: "Past 24 hours" },
-  { value: "3days", label: "Past 3 days" },
-  { value: "week", label: "Past 7 days" },
-  { value: "14days", label: "Past 14 days" },
-  { value: "30days", label: "Past 30 days" },
-  { value: "custom", label: "Custom range" },
-];
-
-const STATUS_COLORS = {
-  PENDING: {
-    icon: "text-amber-500",
-    bg: "bg-amber-50",
-    border: "border-amber-200",
-    text: "text-amber-700",
-  },
-  IN_REVIEW: {
-    icon: "text-blue-500",
-    bg: "bg-blue-50",
-    border: "border-blue-200",
-    text: "text-blue-700",
-  },
-  APPROVED: {
-    icon: "text-emerald-500",
-    bg: "bg-emerald-50",
-    border: "border-emerald-200",
-    text: "text-emerald-700",
-  },
-  REJECTED: {
-    icon: "text-red-500",
-    bg: "bg-red-50",
-    border: "border-red-200",
-    text: "text-red-700",
-  },
-} as const;
-
-const statusConfig: Record<Status, { label: string; icon: React.ReactNode }> = {
-  PENDING: {
-    label: "Pending",
-    icon: <Clock className="h-3 w-3" />,
-  },
-  IN_REVIEW: {
-    label: "In Review",
-    icon: <AlertCircle className="h-3 w-3" />,
-  },
-  APPROVED: {
-    label: "Approved",
-    icon: <CheckCircle2 className="h-3 w-3" />,
-  },
-  REJECTED: {
-    label: "Rejected",
-    icon: <XCircle className="h-3 w-3" />,
-  },
-};
-
-const AUDIT_ACTION_CONFIG: Record<string, { label: string; color: string }> = {
-  CREATED: { label: "Application Submitted", color: "bg-emerald-500" },
-  VIEWED: { label: "Viewed", color: "bg-blue-500" },
-  STATUS_CHANGED: { label: "Status Changed", color: "bg-amber-500" },
-  DOCUMENT_UPLOADED: { label: "Document Uploaded", color: "bg-blue-500" },
-  DOCUMENT_DELETED: { label: "Document Deleted", color: "bg-red-500" },
-  ASSIGNED: { label: "Assigned", color: "bg-blue-500" },
-  VIEW_MODE_PRIVILEGED: { label: "Viewed Full PII", color: "bg-purple-500" },
-  VIEW_MODE_REDACTED: { label: "Switched to Redacted", color: "bg-gray-500" },
-};
-
-function getAuditActionInfo(action: string): { label: string; color: string } {
-  return AUDIT_ACTION_CONFIG[action] || { label: action, color: "bg-gray-500" };
-}
-
-function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 export default function QueuePage() {
+  const router = useRouter();
   const [viewMode, setViewMode] = useState<ViewMode>("queue");
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -194,11 +118,12 @@ export default function QueuePage() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
+    const storedUser = localStorage.getItem(STORAGE_KEYS.USER);
     if (storedUser) {
       try {
         setCurrentUser(JSON.parse(storedUser));
-      } catch {
+      } catch (error) {
+        console.error("Failed to parse stored user:", error);
       }
     }
 
@@ -208,7 +133,7 @@ export default function QueuePage() {
         if (response.ok) {
           const user = await response.json();
           setCurrentUser(user);
-          localStorage.setItem("user", JSON.stringify(user));
+          localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
         }
       } catch (error) {
         console.error("Failed to fetch current user:", error);
@@ -539,17 +464,17 @@ export default function QueuePage() {
                     </TableHeader>
                     <TableBody>
                       {filteredIntakes.map((intake) => {
-                        const config = statusConfig[intake.status as Status];
+                        const config = getStatusConfig(intake.status as Status);
                         const colors = STATUS_COLORS[intake.status as Status];
                         return (
                           <TableRow 
                             key={intake.id} 
                             className="cursor-pointer hover:bg-muted/50"
-                            onClick={() => window.location.href = `/queue/${intake.id}`}
+                            onClick={() => router.push(`/queue/${intake.id}`)}
                           >
                             <TableCell className="font-mono text-xs text-muted-foreground">{intake.id}</TableCell>
                             <TableCell className="font-medium">{intake.clientName}</TableCell>
-                            <TableCell className="text-muted-foreground">{formatDate(intake.createdAt)}</TableCell>
+                            <TableCell className="text-muted-foreground">{formatDateTime(intake.createdAt)}</TableCell>
                             <TableCell>
                               <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${colors.bg} ${colors.border} ${colors.text}`}>
                                 <span className={colors.icon}>{config.icon}</span>
@@ -636,10 +561,10 @@ export default function QueuePage() {
                   <Select value={auditReviewerFilter} onValueChange={setAuditReviewerFilter}>
                     <SelectTrigger className="w-[180px]">
                       <User className="h-4 w-4 mr-2" />
-                      <SelectValue placeholder="All Reviewers" />
+                      <SelectValue placeholder="All Users" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Reviewers</SelectItem>
+                      <SelectItem value="all">All Users</SelectItem>
                       {reviewers.map((reviewer) => (
                         <SelectItem key={reviewer.id} value={reviewer.id}>
                           {reviewer.name}
@@ -723,7 +648,7 @@ export default function QueuePage() {
                     <TableRow>
                       <TableHead className="w-[180px]">Timestamp</TableHead>
                       <TableHead className="w-[180px]">Activity</TableHead>
-                      <TableHead>Reviewer</TableHead>
+                      <TableHead>User</TableHead>
                       <TableHead>Application</TableHead>
                       <TableHead>Patient</TableHead>
                       <TableHead>Details</TableHead>
@@ -735,7 +660,7 @@ export default function QueuePage() {
                       return (
                         <TableRow key={log.id}>
                           <TableCell className="text-muted-foreground">
-                            {formatDate(log.createdAt)}
+                            {formatDateTime(log.createdAt)}
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">

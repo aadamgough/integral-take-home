@@ -68,13 +68,23 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(
+    const response = NextResponse.json(
       { 
         message: "User registered successfully",
         user 
       },
       { status: 201 }
     );
+
+    response.cookies.set("userId", user.id, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 7,
+      path: "/",
+    });
+
+    return response;
   } catch (error) {
     console.error("Registration error:", error);
     return NextResponse.json(

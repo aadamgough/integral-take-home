@@ -7,7 +7,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { email, password } = body;
 
-    // Validate required fields
     if (!email || !password) {
       return NextResponse.json(
         { error: "Email and password are required" },
@@ -15,7 +14,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find user by email
     let user;
     try {
       user = await prisma.user.findUnique({
@@ -36,7 +34,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Compare passwords
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
@@ -46,13 +43,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Return user data (excluding password)
     const { password: _, ...userWithoutPassword } = user;
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       message: "Login successful",
       user: userWithoutPassword,
     });
+
+    response.cookies.set("userId", user.id, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 7,
+      path: "/",
+    });
+
+    return response;
   } catch (error) {
     console.error("Login error:", error);
     return NextResponse.json(

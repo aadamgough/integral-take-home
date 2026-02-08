@@ -50,7 +50,7 @@ export default function LoginPage() {
       localStorage.setItem("user", JSON.stringify(data.user));
 
       if (data.user.role === "PATIENT") {
-        router.push("/intake");
+        router.push("/dashboard");
       } else {
         router.push("/queue");
       }

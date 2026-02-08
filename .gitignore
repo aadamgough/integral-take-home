@@ -28,6 +28,10 @@ yarn-error.log*
 .env*.local
 .env
 
+# uploaded files (keep structure, ignore content)
+/uploads/documents/*
+!/uploads/documents/.gitkeep
+
 # vercel
 .vercel
 

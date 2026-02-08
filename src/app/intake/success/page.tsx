@@ -37,7 +37,7 @@ export default function IntakeSuccessPage() {
                 <Link href="/intake">Submit Another</Link>
               </Button>
               <Button asChild>
-                <Link href="/">Return to Home</Link>
+                <Link href="/dashboard">Go to Dashboard</Link>
               </Button>
             </div>
           </div>

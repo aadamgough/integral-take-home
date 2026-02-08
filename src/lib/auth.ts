@@ -57,56 +57,33 @@ export async function getCurrentUser() {
   const cookieStore = await cookies();
   
   const sessionToken = cookieStore.get(SESSION_COOKIE_NAME)?.value;
-  if (sessionToken) {
-    const session = await verifySession(sessionToken);
-    if (session) {
-      return prisma.user.findUnique({ where: { id: session.userId } });
-    }
+  if (!sessionToken) {
+    return null;
   }
   
-  const userId = cookieStore.get("userId")?.value;
-  if (userId) {
-    return prisma.user.findUnique({ where: { id: userId } });
+  const session = await verifySession(sessionToken);
+  if (!session) {
+    return null;
   }
   
-  return null;
+  return prisma.user.findUnique({ where: { id: session.userId } });
 }
 
 export async function getSession(): Promise<SessionPayload | null> {
   const cookieStore = await cookies();
   
   const sessionToken = cookieStore.get(SESSION_COOKIE_NAME)?.value;
-  if (sessionToken) {
-    return verifySession(sessionToken);
+  if (!sessionToken) {
+    return null;
   }
   
-  const userId = cookieStore.get("userId")?.value;
-  if (userId) {
-    const user = await prisma.user.findUnique({ 
-      where: { id: userId },
-      select: { id: true, email: true, role: true }
-    });
-    if (user) {
-      return {
-        userId: user.id,
-        email: user.email,
-        role: user.role,
-        expiresAt: Date.now() + SESSION_MAX_AGE * 1000,
-      };
-    }
-  }
-  
-  return null;
+  return verifySession(sessionToken);
 }
 
 export function clearSessionCookie(response: Response): void {
   response.headers.append(
     "Set-Cookie",
     `${SESSION_COOKIE_NAME}=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax`
-  );
-  response.headers.append(
-    "Set-Cookie",
-    `userId=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax`
   );
 }
 

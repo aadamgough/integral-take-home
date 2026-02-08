@@ -13,14 +13,5 @@ export async function POST() {
     path: "/",
   });
 
-  // Also clear the old userId cookie for backwards compatibility
-  response.cookies.set("userId", "", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    maxAge: 0,
-    path: "/",
-  });
-
   return response;
 }

@@ -67,15 +67,6 @@ export async function POST(request: NextRequest) {
       path: "/",
     });
 
-    // Clear the old userId cookie if it exists
-    response.cookies.set("userId", "", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 0,
-      path: "/",
-    });
-
     return response;
   } catch (error) {
     console.error("Login error:", error);

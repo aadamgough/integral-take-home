@@ -31,6 +31,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
 import {
   Clock,
@@ -72,6 +73,14 @@ interface Reviewer {
   id: string;
   name: string;
   email: string;
+}
+
+interface CurrentUser {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  organization: string | null;
 }
 
 type Status = "PENDING" | "IN_REVIEW" | "APPROVED" | "REJECTED";
@@ -182,6 +191,31 @@ export default function QueuePage() {
   const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>();
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [computedDateRange, setComputedDateRange] = useState<{ startDate: string; endDate: string }>({ startDate: "", endDate: "" });
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      try {
+        setCurrentUser(JSON.parse(storedUser));
+      } catch {
+      }
+    }
+
+    async function fetchCurrentUser() {
+      try {
+        const response = await fetch("/api/auth/me");
+        if (response.ok) {
+          const user = await response.json();
+          setCurrentUser(user);
+          localStorage.setItem("user", JSON.stringify(user));
+        }
+      } catch (error) {
+        console.error("Failed to fetch current user:", error);
+      }
+    }
+    fetchCurrentUser();
+  }, []);
 
   useEffect(() => {
     const now = new Date();
@@ -370,9 +404,10 @@ export default function QueuePage() {
 
             <div className="flex items-center gap-4">
               <div className="text-right hidden sm:block">
-                <p className="text-sm font-medium">Jane Smith</p>
-                <p className="text-xs text-muted-foreground">Reviewer</p>
+                <p className="text-sm font-medium">{currentUser?.name || "Loading..."}</p>
+                <p className="text-xs text-muted-foreground">{currentUser?.role === "REVIEWER" ? "Reviewer" : "Patient"}</p>
               </div>
+              <ThemeToggle />
               <Button variant="ghost" size="icon" asChild>
                 <Link href="/">
                   <LogOut className="h-4 w-4" />

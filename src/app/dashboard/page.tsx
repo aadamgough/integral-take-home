@@ -21,9 +21,9 @@ import {
   Plus,
   LogOut,
   FileText,
-  Eye,
   Loader2,
 } from "lucide-react";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 type Status = "PENDING" | "IN_REVIEW" | "APPROVED" | "REJECTED";
 
@@ -187,6 +187,7 @@ export default function PatientDashboardPage() {
                 <p className="text-sm font-medium">{user?.name}</p>
                 <p className="text-xs text-muted-foreground">Patient</p>
               </div>
+              <ThemeToggle />
               <Button variant="ghost" size="icon" onClick={handleLogout}>
                 <LogOut className="h-4 w-4" />
               </Button>
@@ -297,7 +298,6 @@ export default function PatientDashboardPage() {
                     <TableHead>Submitted</TableHead>
                     <TableHead>Documents</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -305,7 +305,11 @@ export default function PatientDashboardPage() {
                     const config = statusConfig[intake.status];
                     const colors = STATUS_COLORS[intake.status];
                     return (
-                      <TableRow key={intake.id}>
+                      <TableRow 
+                        key={intake.id}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => router.push(`/dashboard/${intake.id}`)}
+                      >
                         <TableCell className="font-mono text-sm">
                           {intake.id.slice(0, 8)}
                         </TableCell>
@@ -321,14 +325,6 @@ export default function PatientDashboardPage() {
                             <span className={colors.icon}>{config.icon}</span>
                             {config.label}
                           </span>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="ghost" size="sm" className="gap-1" asChild>
-                            <Link href={`/dashboard/${intake.id}`}>
-                              <Eye className="h-4 w-4" />
-                              View
-                            </Link>
-                          </Button>
                         </TableCell>
                       </TableRow>
                     );

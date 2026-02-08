@@ -43,6 +43,7 @@ import {
   type Status,
   type TimeRangePreset,
 } from "@/lib/constants";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Clock,
   AlertCircle,
@@ -103,6 +104,10 @@ export default function QueuePage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [intakes, setIntakes] = useState<Intake[]>([]);
   const [isLoadingIntakes, setIsLoadingIntakes] = useState(true);
+  
+  const [selectedIntakes, setSelectedIntakes] = useState<Set<string>>(new Set());
+  const [bulkStatus, setBulkStatus] = useState<string>("");
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
 
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [reviewers, setReviewers] = useState<Reviewer[]>([]);
@@ -327,6 +332,64 @@ export default function QueuePage() {
 
   const hasActiveFilters = auditSearch || auditActionFilter !== "all" || auditReviewerFilter !== "all" || timeRangePreset !== "all";
 
+  const toggleSelectAll = () => {
+    if (selectedIntakes.size === filteredIntakes.length) {
+      setSelectedIntakes(new Set());
+    } else {
+      setSelectedIntakes(new Set(filteredIntakes.map((i) => i.id)));
+    }
+  };
+
+  const toggleSelectIntake = (id: string) => {
+    const newSelected = new Set(selectedIntakes);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIntakes(newSelected);
+  };
+
+  const clearSelection = () => {
+    setSelectedIntakes(new Set());
+    setBulkStatus("");
+  };
+
+  const handleBulkStatusChange = async () => {
+    if (selectedIntakes.size === 0 || !bulkStatus) return;
+
+    setIsBulkUpdating(true);
+    try {
+      const response = await fetch("/api/intakes/bulk", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          intakeIds: Array.from(selectedIntakes),
+          status: bulkStatus,
+        }),
+      });
+
+      if (response.ok) {
+        const intakesResponse = await fetch("/api/intakes");
+        if (intakesResponse.ok) {
+          const data = await intakesResponse.json();
+          setIntakes(data);
+        }
+        clearSelection();
+      } else {
+        const error = await response.json();
+        console.error("Bulk update failed:", error);
+      }
+    } catch (error) {
+      console.error("Bulk update error:", error);
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
+
+  const isAllSelected = filteredIntakes.length > 0 && selectedIntakes.size === filteredIntakes.length;
+  const isSomeSelected = selectedIntakes.size > 0 && selectedIntakes.size < filteredIntakes.length;
+
   return (
     <div className="min-h-screen bg-muted/30">
       <header className="bg-background border-b">
@@ -429,9 +492,35 @@ export default function QueuePage() {
                     <CardTitle>Intake Submissions</CardTitle>
                     <p className="text-sm text-muted-foreground mt-1">
                       {filteredIntakes.length} intakes found
+                      {selectedIntakes.size > 0 && ` · ${selectedIntakes.size} selected`}
                     </p>
                   </div>
-                  <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="flex flex-col sm:flex-row gap-3 items-center">
+                    {selectedIntakes.size > 0 && (
+                      <>
+                        <Select value={bulkStatus} onValueChange={setBulkStatus}>
+                          <SelectTrigger className="w-full sm:w-[160px]">
+                            <SelectValue placeholder="Change status..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="PENDING">Pending</SelectItem>
+                            <SelectItem value="IN_REVIEW">In Review</SelectItem>
+                            <SelectItem value="APPROVED">Approved</SelectItem>
+                            <SelectItem value="REJECTED">Rejected</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          size="sm"
+                          onClick={handleBulkStatusChange}
+                          disabled={!bulkStatus || isBulkUpdating}
+                        >
+                          {isBulkUpdating && (
+                            <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                          )}
+                          Apply
+                        </Button>
+                      </>
+                    )}
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
@@ -466,6 +555,13 @@ export default function QueuePage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="w-[40px]">
+                          <Checkbox
+                            checked={isAllSelected ? true : isSomeSelected ? "indeterminate" : false}
+                            onCheckedChange={toggleSelectAll}
+                            aria-label="Select all"
+                          />
+                        </TableHead>
                         <TableHead>Reference</TableHead>
                         <TableHead>Patient Name</TableHead>
                         <TableHead>Submitted</TableHead>
@@ -478,12 +574,20 @@ export default function QueuePage() {
                       {filteredIntakes.map((intake) => {
                         const config = getStatusConfig(intake.status as Status);
                         const colors = STATUS_COLORS[intake.status as Status];
+                        const isSelected = selectedIntakes.has(intake.id);
                         return (
                           <TableRow 
                             key={intake.id} 
-                            className="cursor-pointer hover:bg-muted/50"
+                            className={`cursor-pointer hover:bg-muted/50 ${isSelected ? "bg-muted/30" : ""}`}
                             onClick={() => router.push(`/queue/${intake.id}`)}
                           >
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              <Checkbox
+                                checked={isSelected}
+                                onCheckedChange={() => toggleSelectIntake(intake.id)}
+                                aria-label={`Select ${intake.clientName}`}
+                              />
+                            </TableCell>
                             <TableCell className="font-mono text-xs text-muted-foreground">{intake.id}</TableCell>
                             <TableCell className="font-medium">{intake.clientName}</TableCell>
                             <TableCell className="text-muted-foreground">{formatDateTime(intake.createdAt)}</TableCell>
@@ -509,7 +613,7 @@ export default function QueuePage() {
                       })}
                       {filteredIntakes.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                          <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                             No intakes found matching your criteria
                           </TableCell>
                         </TableRow>
@@ -545,7 +649,6 @@ export default function QueuePage() {
                     </Button>
                   </div>
                 </div>
-                {/* Search and Filters Row */}
                 <div className="flex flex-wrap items-center gap-3">
                   <div className="relative flex-1 min-w-[200px]">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

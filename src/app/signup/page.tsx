@@ -28,14 +28,12 @@ export default function SignUpPage() {
     setError("");
     setIsLoading(true);
 
-    // Validate passwords match
     if (password !== confirmPassword) {
       setError("Passwords do not match");
       setIsLoading(false);
       return;
     }
 
-    // Validate password length
     if (password.length < 6) {
       setError("Password must be at least 6 characters long");
       setIsLoading(false);
@@ -65,10 +63,8 @@ export default function SignUpPage() {
         return;
       }
 
-      // Registration successful
       setSuccess(true);
       
-      // Redirect to login after 2 seconds
       setTimeout(() => {
         router.push("/");
       }, 2000);
@@ -103,13 +99,11 @@ export default function SignUpPage() {
   return (
     <div className="min-h-screen bg-muted/30 flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-md space-y-6">
-        {/* Header */}
         <div className="text-center space-y-2">
           <h1 className="text-3xl font-bold tracking-tight">Create Account</h1>
           <p className="text-muted-foreground">Join the Intake Review System</p>
         </div>
 
-        {/* Sign Up Card */}
         <Card>
           <CardHeader>
             <CardTitle>Sign Up</CardTitle>
@@ -117,7 +111,6 @@ export default function SignUpPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Error Message */}
               {error && (
                 <div className="flex items-center gap-2 p-3 bg-destructive/10 text-destructive rounded-md text-sm">
                   <AlertCircle className="h-4 w-4 shrink-0" />
@@ -125,7 +118,6 @@ export default function SignUpPage() {
                 </div>
               )}
 
-              {/* Role Selection */}
               <div className="space-y-2">
                 <Label>Account Type</Label>
                 <div className="grid grid-cols-2 gap-3">
@@ -150,7 +142,6 @@ export default function SignUpPage() {
                 </div>
               </div>
 
-              {/* Full Name */}
               <div className="space-y-2">
                 <Label htmlFor="name">Full Name</Label>
                 <Input
@@ -163,7 +154,6 @@ export default function SignUpPage() {
                 />
               </div>
 
-              {/* Email */}
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
@@ -176,7 +166,6 @@ export default function SignUpPage() {
                 />
               </div>
 
-              {/* Organization (for Reviewers) */}
               {selectedRole === "REVIEWER" && (
                 <div className="space-y-2">
                   <Label htmlFor="organization">Organization</Label>
@@ -190,7 +179,6 @@ export default function SignUpPage() {
                 </div>
               )}
 
-              {/* Password */}
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
                 <Input
@@ -203,7 +191,6 @@ export default function SignUpPage() {
                 />
               </div>
 
-              {/* Confirm Password */}
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">Confirm Password</Label>
                 <Input
@@ -216,12 +203,10 @@ export default function SignUpPage() {
                 />
               </div>
 
-              {/* Submit Button */}
               <Button type="submit" className="w-full h-11" disabled={isLoading}>
                 {isLoading ? "Creating Account..." : `Sign up as ${selectedRole === "PATIENT" ? "Patient" : "Reviewer"}`}
               </Button>
 
-              {/* Login Link */}
               <p className="text-center text-sm text-muted-foreground">
                 Already have an account?{" "}
                 <Link href="/" className="text-primary hover:underline font-medium">

@@ -118,7 +118,6 @@ export default function QueuePage() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
 
   useEffect(() => {
-    // Use localStorage for initial render to avoid flash
     const storedUser = localStorage.getItem(STORAGE_KEYS.USER);
     if (storedUser) {
       try {

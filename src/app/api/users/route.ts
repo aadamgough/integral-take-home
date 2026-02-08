@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// GET /api/users - Fetch all users (for admin purposes) or check if email exists
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const email = searchParams.get("email");
 
-    // If email is provided, check if user exists
     if (email) {
       const user = await prisma.user.findUnique({
         where: { email: email.toLowerCase() },
@@ -31,7 +29,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ exists: true, user });
     }
 
-    // Otherwise, fetch all users (excluding passwords)
     const users = await prisma.user.findMany({
       select: {
         id: true,

@@ -30,7 +30,6 @@ export async function GET(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: "Document not found" }, { status: 404 });
     }
 
-    // Patients can only view documents from their own intakes
     if (user.role === "PATIENT" && document.intake.submittedById !== user.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
@@ -40,7 +39,6 @@ export async function GET(request: Request, { params }: RouteParams) {
     try {
       const fileBuffer = await readFile(filePath);
       
-      // Convert Buffer to Uint8Array for NextResponse compatibility
       return new NextResponse(new Uint8Array(fileBuffer), {
         headers: {
           "Content-Type": document.fileType,

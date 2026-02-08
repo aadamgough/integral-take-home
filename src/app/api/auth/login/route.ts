@@ -46,7 +46,6 @@ export async function POST(request: NextRequest) {
 
     const { password: _, ...userWithoutPassword } = user;
 
-    // Create signed JWT session token
     const sessionToken = await createSession({
       id: user.id,
       email: user.email,
@@ -58,7 +57,6 @@ export async function POST(request: NextRequest) {
       user: userWithoutPassword,
     });
 
-    // Set the secure session cookie
     response.cookies.set(SESSION_COOKIE_NAME, sessionToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",

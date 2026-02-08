@@ -53,7 +53,6 @@ export default function PatientDashboardPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Use localStorage for initial render to avoid flash, but verify with server
     const storedUser = localStorage.getItem(STORAGE_KEYS.USER);
     if (storedUser) {
       try {
@@ -66,7 +65,6 @@ export default function PatientDashboardPage() {
       }
     }
 
-    // Verify auth state with server (source of truth)
     async function verifyAuthAndFetch() {
       try {
         const authResponse = await fetch("/api/auth/me");
@@ -85,7 +83,6 @@ export default function PatientDashboardPage() {
         setUser(verifiedUser);
         localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(verifiedUser));
 
-        // Fetch intakes
         const intakesResponse = await fetch("/api/intakes");
         if (!intakesResponse.ok) {
           throw new Error("Failed to fetch submissions");
@@ -114,7 +111,6 @@ export default function PatientDashboardPage() {
     }
   };
 
-  // Calculate status counts
   const statusCounts = intakes.reduce(
     (acc, intake) => {
       acc[intake.status]++;
@@ -133,7 +129,6 @@ export default function PatientDashboardPage() {
 
   return (
     <div className="min-h-screen bg-muted/30">
-      {/* Header */}
       <header className="bg-background border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -158,9 +153,7 @@ export default function PatientDashboardPage() {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
             <h1 className="text-2xl font-bold">My Applications</h1>
@@ -174,7 +167,6 @@ export default function PatientDashboardPage() {
           </Button>
         </div>
 
-        {/* Status Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -214,7 +206,6 @@ export default function PatientDashboardPage() {
           </Card>
         </div>
 
-        {/* Error State */}
         {error && (
           <Card className="mb-8 border-destructive">
             <CardContent className="pt-6">
@@ -226,7 +217,6 @@ export default function PatientDashboardPage() {
           </Card>
         )}
 
-        {/* Applications Table */}
         <Card>
           <CardHeader>
             <CardTitle>Your Submissions</CardTitle>

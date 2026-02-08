@@ -585,7 +585,17 @@ export default function IntakeDetailPage() {
 
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-lg">Activity Log</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg">Activity Log</CardTitle>
+                  {intake.auditLogs.length > 0 && (
+                    <Button variant="outline" size="sm" asChild>
+                      <a href={`/api/intakes/${intake.id}/audit/export`} download>
+                        <Download className="h-4 w-4 mr-1" />
+                        Export CSV
+                      </a>
+                    </Button>
+                  )}
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3 max-h-48 overflow-auto">

@@ -20,7 +20,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Clock,
   AlertCircle,
@@ -28,7 +27,6 @@ import {
   XCircle,
   Search,
   Filter,
-  Eye,
   LogOut,
   FileText,
   Loader2,
@@ -151,25 +149,11 @@ export default function QueuePage() {
       <header className="bg-background border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-8">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                  <FileText className="h-4 w-4 text-primary" />
-                </div>
-                <span className="font-semibold">Intake Review</span>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                <FileText className="h-4 w-4 text-primary" />
               </div>
-              <Tabs defaultValue="queue" className="hidden sm:block">
-                <TabsList>
-                  <TabsTrigger value="queue" className="gap-2">
-                    <FileText className="h-4 w-4" />
-                    Review Queue
-                  </TabsTrigger>
-                  <TabsTrigger value="audit" className="gap-2">
-                    <Clock className="h-4 w-4" />
-                    Audit Trail
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
+              <span className="font-semibold">Intake Review Queue</span>
             </div>
 
             <div className="flex items-center gap-4">
@@ -282,7 +266,6 @@ export default function QueuePage() {
                     <TableHead>Status</TableHead>
                     <TableHead>Docs</TableHead>
                     <TableHead>Reviewer</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -290,7 +273,11 @@ export default function QueuePage() {
                     const config = statusConfig[intake.status as Status];
                     const colors = STATUS_COLORS[intake.status as Status];
                     return (
-                      <TableRow key={intake.id}>
+                      <TableRow 
+                        key={intake.id} 
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => window.location.href = `/queue/${intake.id}`}
+                      >
                         <TableCell className="font-mono text-xs text-muted-foreground">{intake.id}</TableCell>
                         <TableCell className="font-medium">{intake.clientName}</TableCell>
                         <TableCell className="text-muted-foreground">{formatDate(intake.createdAt)}</TableCell>
@@ -311,20 +298,12 @@ export default function QueuePage() {
                         <TableCell className="text-muted-foreground">
                           {intake.reviewer?.name || "—"}
                         </TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="ghost" size="sm" className="gap-1" asChild>
-                            <Link href={`/queue/${intake.id}`}>
-                              <Eye className="h-4 w-4" />
-                              View
-                            </Link>
-                          </Button>
-                        </TableCell>
                       </TableRow>
                     );
                   })}
                   {filteredIntakes.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                         No intakes found matching your criteria
                       </TableCell>
                     </TableRow>

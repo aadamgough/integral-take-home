@@ -15,6 +15,8 @@ async function getCurrentUser() {
 
 export async function GET(request: Request, { params }: RouteParams) {
   const { id } = await params;
+  const { searchParams } = new URL(request.url);
+  const skipAudit = searchParams.get("skipAudit") === "true";
 
   try {
     const user = await getCurrentUser();
@@ -53,7 +55,7 @@ export async function GET(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: "You don't have permission to view this intake" }, { status: 403 });
     }
 
-    if (user.role === "REVIEWER") {
+    if (user.role === "REVIEWER" && !skipAudit) {
       await prisma.auditLog.create({
         data: {
           action: "VIEWED",

@@ -159,6 +159,8 @@ function getAuditActionLabel(action: string): { label: string; color: string } {
     DOCUMENT_UPLOADED: { label: "Document Uploaded", color: "bg-blue-500" },
     DOCUMENT_DELETED: { label: "Document Deleted", color: "bg-red-500" },
     ASSIGNED: { label: "Assigned", color: "bg-blue-500" },
+    VIEW_MODE_PRIVILEGED: { label: "Viewed Full PII", color: "bg-purple-500" },
+    VIEW_MODE_REDACTED: { label: "Switched to Redacted", color: "bg-gray-500" },
   };
   return actions[action] || { label: action, color: "bg-gray-500" };
 }
@@ -172,10 +174,14 @@ export default function IntakeDetailPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [selectedDocIndex, setSelectedDocIndex] = useState(0);
 
-  const fetchIntake = async (showLoading = true) => {
+  const fetchIntake = async (options: { showLoading?: boolean; skipAudit?: boolean } = {}) => {
+    const { showLoading = true, skipAudit = false } = options;
     if (showLoading) setIsLoading(true);
     try {
-      const response = await fetch(`/api/intakes/${params.id}`);
+      const url = skipAudit 
+        ? `/api/intakes/${params.id}?skipAudit=true` 
+        : `/api/intakes/${params.id}`;
+      const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
         setIntake(data);
@@ -196,6 +202,25 @@ export default function IntakeDetailPage() {
     setStatus(newStatus as Status);
   };
 
+  const handleViewModeToggle = async (privileged: boolean) => {
+    setIsPrivileged(privileged);
+    if (!intake) return;
+    
+    try {
+      await fetch(`/api/intakes/${intake.id}/audit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: privileged ? "VIEW_MODE_PRIVILEGED" : "VIEW_MODE_REDACTED",
+          details: { viewMode: privileged ? "privileged" : "redacted" },
+        }),
+      });
+      await fetchIntake({ showLoading: false, skipAudit: true });
+    } catch (error) {
+      console.error("Failed to log view mode change:", error);
+    }
+  };
+
   const handleSaveChanges = async () => {
     if (!intake) return;
     setIsSaving(true);
@@ -206,7 +231,7 @@ export default function IntakeDetailPage() {
         body: JSON.stringify({ status }),
       });
       if (response.ok) {
-        await fetchIntake(false);
+        await fetchIntake({ showLoading: false, skipAudit: true });
       }
     } catch (error) {
       console.error("Failed to update intake:", error);
@@ -314,7 +339,7 @@ export default function IntakeDetailPage() {
                 <Switch
                   id="privacy-toggle"
                   checked={isPrivileged}
-                  onCheckedChange={setIsPrivileged}
+                  onCheckedChange={handleViewModeToggle}
                 />
               </div>
             </div>

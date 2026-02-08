@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import { PrismaLibSql } from "@prisma/adapter-libsql";
+import bcrypt from "bcryptjs";
 
 const adapter = new PrismaLibSql({
   url: `file:${process.env.DATABASE_URL!.replace("file:", "")}`,
@@ -17,19 +18,25 @@ async function main() {
   await prisma.intake.deleteMany();
   await prisma.user.deleteMany();
 
+  // Hash passwords for demo users
+  const saltRounds = 10;
+  const demoPassword = await bcrypt.hash("demo123", saltRounds);
+
   // Create demo users
   const patientUser = await prisma.user.create({
     data: {
       email: "patient@demo.com",
+      password: demoPassword,
       name: "Demo Patient",
       role: "PATIENT",
-      organization: "Trial Participant",
+      organization: null,
     },
   });
 
   const reviewerUser = await prisma.user.create({
     data: {
       email: "reviewer@demo.com",
+      password: demoPassword,
       name: "Dr. Sarah Chen",
       role: "REVIEWER",
       organization: "PharmaCorp Trial Coordinator",
@@ -38,10 +45,10 @@ async function main() {
 
   console.log("Created users:");
   console.log(
-    `  - ${patientUser.email} (${patientUser.role}, ${patientUser.organization})`
+    `  - ${patientUser.email} (${patientUser.role}) - password: demo123`
   );
   console.log(
-    `  - ${reviewerUser.email} (${reviewerUser.role}, ${reviewerUser.organization})`
+    `  - ${reviewerUser.email} (${reviewerUser.role}, ${reviewerUser.organization}) - password: demo123`
   );
 
   // Create a sample clinical trial enrollment application
@@ -76,6 +83,9 @@ async function main() {
   console.log(`  - Submitted by: ${patientUser.email}`);
 
   console.log("\nSeeding completed!");
+  console.log("\n--- Demo Credentials ---");
+  console.log("Patient: patient@demo.com / demo123");
+  console.log("Reviewer: reviewer@demo.com / demo123");
 }
 
 main()

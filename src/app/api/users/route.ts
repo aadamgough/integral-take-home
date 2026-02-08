@@ -1,10 +1,55 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// TODO: Implement user API endpoints
+// GET /api/users - Fetch all users (for admin purposes) or check if email exists
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const email = searchParams.get("email");
 
-export async function GET() {
-  // TODO: Implement fetching users
-  
-  return NextResponse.json({ message: "TODO: Implement GET /api/users" });
+    // If email is provided, check if user exists
+    if (email) {
+      const user = await prisma.user.findUnique({
+        where: { email: email.toLowerCase() },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          organization: true,
+          createdAt: true,
+        },
+      });
+
+      if (!user) {
+        return NextResponse.json(
+          { exists: false, message: "User not found" },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json({ exists: true, user });
+    }
+
+    // Otherwise, fetch all users (excluding passwords)
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        organization: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return NextResponse.json({ users });
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
 }
